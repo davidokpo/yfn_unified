@@ -1,0 +1,7 @@
+{
+  "name": "YFN - Unified Creative Universe",
+  "description": "A next-generation social commerce platform blending creative coding, high-quality content, and an AI-driven futuristic marketplace.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
