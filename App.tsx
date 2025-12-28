@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ViewType, Transaction, MarketplaceItem, Collection } from './types';
 import { FirebaseService } from './lib/database';
 import { LandingView } from './components/views/LandingView';
@@ -7,17 +7,19 @@ import { MarketplaceView } from './components/views/MarketplaceView';
 import { NewsView } from './components/views/NewsView';
 import { ProfileView } from './components/views/ProfileView';
 import { WalletView } from './components/views/WalletView';
-import { CreativeSpark } from './components/ui/CreativeSpark';
-// Fix: Removed non-existent cloudMode export from lib/firebase
-import { app as firebaseApp, initFirebase } from './lib/firebase';
+import { initFirebase } from './lib/firebase';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewType>(ViewType.LANDING);
-  const [showAIModal, setShowAIModal] = useState(false);
   const [initiallySelectedItem, setInitiallySelectedItem] = useState<MarketplaceItem | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [isFirebaseActive, setIsFirebaseActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [activeCloudMode, setActiveCloudMode] = useState<'active' | 'local' | 'connecting'>('connecting');
+  
+  // Navigation State: controls whether the nav is a full pill or a reclined icon
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Firestore Sync States
   const [balance, setBalance] = useState<number>(2450500.00);
@@ -27,17 +29,34 @@ const App: React.FC = () => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [promotedItems, setPromotedItems] = useState<MarketplaceItem[]>([]);
 
+  // Monitor modal activity to recline the nav bar automatically
+  useEffect(() => {
+    const handleModalToggle = (e: any) => {
+      const open = e.detail.open;
+      setIsModalOpen(open);
+      setNavCollapsed(open); // Recline when payment/modal starts
+    };
+    window.addEventListener('yfn-modal-toggle' as any, handleModalToggle);
+    return () => window.removeEventListener('yfn-modal-toggle' as any, handleModalToggle);
+  }, []);
+
+  // Re-collapse nav when clicking "on the page" while in payment/modal flow
+  const handlePageClick = useCallback(() => {
+    if (isModalOpen && !navCollapsed) {
+      setNavCollapsed(true);
+    }
+  }, [isModalOpen, navCollapsed]);
+
   useEffect(() => {
     const startBackend = async () => {
       const fb = await initFirebase();
       if (fb) {
         setIsFirebaseActive(true);
-        setActiveCloudMode(fb.mode);
+        setActiveCloudMode(fb.mode as 'active' | 'local' | 'connecting');
         
         if (fb.mode === 'active') {
           await FirebaseService.seedMarketplace();
 
-          // Real-time user node sync
           FirebaseService.syncUserNode((userData) => {
             setBalance(userData.balance ?? 2450500.00);
             setRecentlyViewed(userData.recentlyViewed || []);
@@ -46,10 +65,7 @@ const App: React.FC = () => {
             setIsConnecting(false);
           });
 
-          // Real-time ledger sync
           FirebaseService.fetchTransactions((txs) => setTransactions(txs));
-
-          // Real-time collections sync
           FirebaseService.fetchCollections((cols) => setCollections(cols));
         } else {
           setIsConnecting(false);
@@ -75,7 +91,6 @@ const App: React.FC = () => {
     };
     FirebaseService.addTransaction(newTx);
     
-    // Fallback UI update for local mode
     if (activeCloudMode === 'local') {
       if (type === 'incoming') setBalance(prev => prev + amount);
       else setBalance(prev => prev - amount);
@@ -130,8 +145,13 @@ const App: React.FC = () => {
     setCurrentView(ViewType.MARKETPLACE);
   };
 
+  const handleViewProfile = (userId: string) => {
+    setSelectedProfileId(userId);
+    setCurrentView(ViewType.PUBLIC_PROFILE);
+  };
+
   const formatNaira = (amt: number) => 
-    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amt);
+    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 2 }).format(amt);
 
   if (currentView === ViewType.LANDING) {
     return <LandingView onEnter={() => setCurrentView(ViewType.NEWS)} />;
@@ -141,8 +161,8 @@ const App: React.FC = () => {
     const isActive = currentView === view;
     return (
       <button 
-        onClick={() => { setCurrentView(view); setInitiallySelectedItem(null); }} 
-        className={`relative p-3 rounded-2xl transition-all spring-pop flex items-center justify-center ${isActive ? 'text-black' : 'text-gray-500 hover:text-white'}`}
+        onClick={() => { setCurrentView(view); setInitiallySelectedItem(null); setSelectedProfileId(null); }} 
+        className={`relative flex-1 p-3 rounded-2xl transition-all spring-pop flex items-center justify-center ${isActive ? 'text-black' : 'text-gray-500 hover:text-white'}`}
       >
         {isActive && (
           <div className="absolute inset-0 bg-white rounded-2xl shadow-xl z-0 animate-in fade-in zoom-in duration-300">
@@ -155,12 +175,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen relative flex flex-col bg-[#050505] transition-colors duration-1000`}>
-      <div className={`aura-glow top-0 left-0 ${currentView === ViewType.MARKETPLACE ? 'bg-amber-500' : currentView === ViewType.PROFILE ? 'bg-rose-500' : 'bg-teal-500'}`} />
+    <div 
+      className={`min-h-screen relative flex flex-col bg-[#050505] transition-colors duration-1000`}
+      onClick={handlePageClick}
+    >
+      <div className={`aura-glow top-0 left-0 ${currentView === ViewType.MARKETPLACE ? 'bg-amber-500' : currentView === ViewType.PROFILE || currentView === ViewType.PUBLIC_PROFILE ? 'bg-rose-500' : 'bg-teal-500'}`} />
 
       <header className="fixed top-8 inset-x-8 z-50 h-16 flex items-center justify-between pointer-events-none">
         <div 
-          onClick={() => setCurrentView(ViewType.NEWS)}
+          onClick={() => { setCurrentView(ViewType.NEWS); setSelectedProfileId(null); }}
           className="text-3xl font-black italic tracking-tighter cursor-pointer flex items-center gap-3 pointer-events-auto spring-pop"
         >
           <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-xl text-xl not-italic font-black shadow-2xl">Y</div>
@@ -190,7 +213,7 @@ const App: React.FC = () => {
              <div className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center text-[10px] font-black">₦</div>
           </button>
           <div 
-            onClick={() => setCurrentView(ViewType.PROFILE)}
+            onClick={() => { setCurrentView(ViewType.PROFILE); setSelectedProfileId(null); }}
             className="w-12 h-12 rounded-2xl border-2 border-white/10 overflow-hidden cursor-pointer shadow-2xl spring-pop hover:border-white/50"
           >
             <img src="https://picsum.photos/seed/vance/120/120" className="w-full h-full object-cover" alt="Profile" />
@@ -199,7 +222,14 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 pt-32 relative z-10">
-        {currentView === ViewType.NEWS && <NewsView onQuote={() => {}} />}
+        {currentView === ViewType.NEWS && (
+          <NewsView 
+            onQuote={() => {}} 
+            transactions={transactions} 
+            wishlist={wishlist} 
+            onViewProfile={handleViewProfile}
+          />
+        )}
         {currentView === ViewType.MARKETPLACE && (
           <MarketplaceView 
             balance={balance} 
@@ -212,16 +242,22 @@ const App: React.FC = () => {
             onToggleWishlist={toggleWishlist}
             onAddToCollection={addToCollection}
             onCreateCollection={createCollection}
+            onViewProfile={handleViewProfile}
             onPromoteItem={promoteItem}
+            onRequestViewChange={(v) => { setCurrentView(v); setInitiallySelectedItem(null); }}
           />
         )}
-        {currentView === ViewType.PROFILE && (
+        {(currentView === ViewType.PROFILE || currentView === ViewType.PUBLIC_PROFILE) && (
           <ProfileView 
+            userId={selectedProfileId || undefined}
             recentlyViewed={recentlyViewed} 
             wishlist={wishlist}
             collections={collections}
             promotedItems={promotedItems}
+            transactions={transactions}
             onHistoryItemClick={handleVaultItemClick} 
+            onReward={(amt, label) => addTransaction(amt, label, 'incoming', 'royalty')}
+            onViewProfile={handleViewProfile}
           />
         )}
         {currentView === ViewType.WALLET && (
@@ -233,38 +269,44 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <nav className="fixed bottom-10 inset-x-8 z-50 h-20 bg-black/80 backdrop-blur-2xl rounded-full px-6 flex justify-between items-center max-w-lg mx-auto border border-white/10 shadow-2xl">
-        <NavButton view={ViewType.NEWS}>
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
-        </NavButton>
+      {/* RECLINING NAV BAR */}
+      <nav 
+        onClick={(e) => e.stopPropagation()} // Prevent page recline click from triggering here
+        className={`fixed bottom-10 z-50 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+          navCollapsed 
+          ? 'right-10 w-20 h-20 rounded-[2.5rem] bg-amber-500 shadow-[0_20px_60px_rgba(245,158,11,0.4)] translate-x-0' 
+          : 'inset-x-8 h-20 bg-black/80 backdrop-blur-2xl rounded-full px-4 max-w-lg mx-auto border border-white/10 shadow-2xl translate-y-0'
+        }`}
+      >
+        {navCollapsed ? (
+          <button 
+            onClick={() => setNavCollapsed(false)}
+            className="w-full h-full flex items-center justify-center text-black animate-pulse"
+          >
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+          </button>
+        ) : (
+          <div className="flex justify-around items-center h-full w-full">
+            <NavButton view={ViewType.NEWS}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+            </NavButton>
 
-        <NavButton view={ViewType.MARKETPLACE}>
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-        </NavButton>
+            <NavButton view={ViewType.MARKETPLACE}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+            </NavButton>
 
-        <button 
-          onClick={() => setShowAIModal(true)} 
-          className="w-16 h-16 -mt-10 bg-white text-black rounded-2xl flex items-center justify-center shadow-2xl spring-pop relative group overflow-hidden animate-sankofa"
-        >
-          <div className="absolute inset-0 bg-[#039be5] translate-y-full group-hover:translate-y-0 transition-transform duration-500 opacity-20"></div>
-          <svg className="w-8 h-8 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-        </button>
+            <NavButton view={ViewType.WALLET}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </NavButton>
 
-        <NavButton view={ViewType.WALLET}>
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        </NavButton>
-
-        <NavButton view={ViewType.PROFILE}>
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-        </NavButton>
+            <NavButton view={ViewType.PROFILE}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            </NavButton>
+          </div>
+        )}
       </nav>
-
-      {showAIModal && (
-        <CreativeSpark 
-          onClose={() => setShowAIModal(false)} 
-          onReward={(amt, label) => addTransaction(amt, label, 'incoming', 'royalty')} 
-        />
-      )}
     </div>
   );
 };

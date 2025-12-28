@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { FirebaseService } from '../../lib/database';
-import { MarketplaceItem, Collection } from '../../types';
+import { MarketplaceItem, Collection, ViewType } from '../../types';
 import { PriceBargainModal } from '../ui/PriceBargainModal';
 import { VirtualTryOnModal } from '../ui/VirtualTryOnModal';
 import { InteractiveMap } from '../ui/InteractiveMap';
@@ -21,6 +21,8 @@ interface MarketplaceViewProps {
   onAddToCollection: (collectionId: string, itemId: number) => void;
   onCreateCollection: (name: string, itemId: number) => void;
   onPromoteItem: (item: MarketplaceItem) => void;
+  onRequestViewChange?: (view: any) => void;
+  onViewProfile: (userId: string) => void;
 }
 
 export const MarketplaceView: React.FC<MarketplaceViewProps> = ({ 
@@ -34,7 +36,9 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   onToggleWishlist,
   onAddToCollection,
   onCreateCollection,
-  onPromoteItem
+  onPromoteItem,
+  onRequestViewChange,
+  onViewProfile
 }) => {
   const [items, setItems] = useState<MarketplaceItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,11 +55,26 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   const [filterType, setFilterType] = useState<'location' | 'rating'>('location');
   const [activeCategory, setActiveCategory] = useState('ALL');
 
+  // Inform the App shell to hide the bottom nav when an overlay is active
   useEffect(() => {
-    FirebaseService.fetchMarketplace().then(data => {
-      setItems(data);
-      setLoading(false);
-    });
+    const isOverlayOpen = isViewingDetail || isBargaining || isTryingOn || isUploading || isCheckingOut;
+    // We can use a custom event to communicate with App.tsx if we don't have a prop
+    const event = new CustomEvent('yfn-modal-toggle', { detail: { open: isOverlayOpen } });
+    window.dispatchEvent(event);
+  }, [isViewingDetail, isBargaining, isTryingOn, isUploading, isCheckingOut]);
+
+  const refreshItems = async () => {
+    setLoading(true);
+    const data = await FirebaseService.fetchMarketplace();
+    setItems(data);
+    setLoading(false);
+  };
+
+  const formatNaira = (amt: number) => 
+    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(amt);
+
+  useEffect(() => {
+    refreshItems();
   }, []);
 
   useEffect(() => {
@@ -95,6 +114,14 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
     onViewItem(item);
   };
 
+  const handleVendorClick = (e: React.MouseEvent, handle: string) => {
+    e.stopPropagation();
+    let authorId = handle.startsWith('@') ? handle.slice(1) : handle;
+    if (authorId === 'davina_soles') authorId = 'davina_soles';
+    if (authorId === 'vance_studio') authorId = '0xVANCE_82';
+    onViewProfile(authorId);
+  };
+
   const handleStartCheckout = (price: number) => {
     setCheckoutPrice(price);
     setIsBargaining(false);
@@ -106,20 +133,27 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   const handleCompletePurchase = (total: number, label: string) => {
     onPurchase(total, label);
     setIsCheckingOut(false);
-    setSelectedItem(null);
     
     if (selectedItem?.allowReferral) {
+      const commission = selectedItem.referralFee || Math.floor(selectedItem.numericPrice * 0.05);
       setTimeout(() => {
-        onReward(selectedItem.referralFee || 2000, `Referral Pay: ${selectedItem.name}`);
+        onReward(commission, `Referral Commission: ${selectedItem.name}`);
       }, 1000);
     }
+    
+    setSelectedItem(null);
   };
 
-  const handleReferral = (item: MarketplaceItem) => {
-    const fee = item.referralFee || 5000;
-    onReward(fee, `Promoter Link Created: ${item.name}`);
+  const handleReferral = (e: React.MouseEvent | null, item: MarketplaceItem) => {
+    if (e) e.stopPropagation();
+    const estimatedFee = item.referralFee || Math.floor(item.numericPrice * 0.05);
     onPromoteItem(item); 
-    setReferralFeedback({ name: item.name, amt: fee });
+    
+    const refId = Math.random().toString(36).substr(2, 6).toUpperCase();
+    const refLink = `https://yfn.app/r/${refId}/${item.id}`;
+    navigator.clipboard.writeText(refLink);
+    
+    setReferralFeedback({ name: item.name, amt: estimatedFee });
     setTimeout(() => setReferralFeedback(null), 5000);
   };
 
@@ -143,13 +177,13 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
     <div className="max-w-4xl mx-auto px-6 pb-48 animate-fade-in pt-4 relative">
       
       {referralFeedback && (
-        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[300] w-full max-w-sm px-6 animate-in slide-in-from-top-10 duration-700">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[300] w-full max-w-sm px-6 animate-in slide-in-from-top-20 duration-700">
            <div className="bg-white text-black rounded-[2.5rem] p-6 shadow-2xl border-4 border-amber-500 flex items-center gap-5 relative overflow-hidden">
              <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 animate-pulse" />
              <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 font-black text-xl">🔗</div>
              <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-600 mb-0.5">Referral Activated</p>
-                <p className="text-sm font-bold leading-tight">Link copied for <span className="italic">{referralFeedback.name}</span>. Earn ₦{referralFeedback.amt.toLocaleString()}!</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-600 mb-0.5">Referral Node Synced</p>
+                <p className="text-sm font-bold leading-tight italic">Link copied! Earn {formatNaira(referralFeedback.amt)} on next purchase of {referralFeedback.name}.</p>
              </div>
            </div>
         </div>
@@ -164,19 +198,11 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               </svg>
               <input 
                 type="text"
-                placeholder="Search the Spatial Market..."
+                placeholder="Search products or services..."
                 className="bg-transparent border-none focus:outline-none text-xl w-full text-white placeholder:text-gray-600 font-black italic tracking-tight"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="ml-2 p-2 hover:bg-white/10 rounded-full transition-colors spring-pop"
-                >
-                  <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              )}
             </div>
             <button 
               onClick={() => setIsUploading(true)}
@@ -202,20 +228,6 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                  </button>
                ))}
             </div>
-
-            <div className="hidden md:flex gap-3 overflow-x-auto no-scrollbar py-2">
-              {['ALL', 'APPAREL', 'BAGS', 'TECH', 'FOOTWEAR'].map(cat => (
-                <button 
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`flex-shrink-0 px-6 py-2.5 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border spring-pop ${
-                    activeCategory === cat ? 'bg-amber-500 text-black border-amber-500 shadow-xl' : 'bg-transparent text-gray-500 border-white/10 hover:border-white/30'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </div>
@@ -231,54 +243,80 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        {filteredItems.map((item, index) => (
-          <div 
-            key={item.id} 
-            className="group bg-white rounded-[3.5rem] overflow-hidden shadow-2xl transition-all spring-pop cursor-pointer border border-gray-50 hover:shadow-amber-500/10"
-            onClick={() => handleSelectItem(item)}
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            <div className="aspect-[4/5] relative overflow-hidden bg-gray-100">
-              <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={item.name} />
-              
-              <div className="absolute top-8 left-8 flex flex-col gap-2">
-                <div className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-xl tracking-widest shadow-2xl flex items-center gap-2">
-                  <span className="text-amber-500">★</span> {item.vendorRating}
+      <div 
+        key={`${filterType}-${activeCategory}-${searchQuery.length > 0}`}
+        className="grid grid-cols-1 md:grid-cols-2 gap-12"
+      >
+        {filteredItems.length > 0 ? filteredItems.map((item, index) => {
+          const isService = item.category.toUpperCase() === 'SERVICES';
+          return (
+            <div 
+              key={item.id} 
+              className="group bg-white rounded-[3.5rem] overflow-hidden shadow-2xl transition-all spring-pop cursor-pointer border border-gray-50 hover:shadow-amber-500/10 animate-item-reveal hover:scale-[1.01] duration-500"
+              onClick={() => handleSelectItem(item)}
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="aspect-[4/5] relative overflow-hidden bg-gray-100">
+                <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={item.name} />
+                
+                <div className="absolute top-8 left-8 flex flex-col gap-2">
+                  <div className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-xl tracking-widest shadow-2xl flex items-center gap-2">
+                    <span className="text-amber-500">★</span> {item.vendorRating}
+                  </div>
+                </div>
+
+                <div className="absolute top-8 right-8 flex flex-col gap-3">
+                  <button 
+                    onClick={(e) => handleWishlistClick(e, item)}
+                    className={`w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all spring-pop backdrop-blur-md ${
+                      isInWishlist(item.id) ? 'bg-rose-500 text-white animate-heart' : 'bg-white/20 text-white hover:bg-white hover:text-black'
+                    }`}
+                  >
+                    <svg className="w-7 h-7" fill={isInWishlist(item.id) ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
+                  
+                  {item.allowReferral && (
+                    <button 
+                      onClick={(e) => handleReferral(e, item)}
+                      className="w-14 h-14 bg-white/20 backdrop-blur-md text-white rounded-full flex items-center justify-center shadow-2xl hover:bg-amber-500 hover:text-black transition-all"
+                    >
+                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <button 
-                onClick={(e) => handleWishlistClick(e, item)}
-                className={`absolute top-8 right-8 w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all spring-pop backdrop-blur-md ${
-                  isInWishlist(item.id) ? 'bg-amber-500 text-black animate-heart' : 'bg-white/20 text-white hover:bg-white hover:text-black'
-                }`}
-              >
-                <svg className="w-7 h-7" fill={isInWishlist(item.id) ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </button>
-
-              <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
-                 <button className="px-6 py-3 bg-black/80 backdrop-blur-xl text-white text-[9px] font-black uppercase rounded-full tracking-widest border border-white/20 shadow-2xl">
-                   Quick View
-                 </button>
+              
+              <div className="p-10 flex justify-between items-start">
+                 <div>
+                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1">{item.category}</p>
+                    <h3 className="text-3xl font-black italic text-black leading-tight tracking-tighter">{item.name}</h3>
+                    <div 
+                      className="flex items-center gap-2 mt-2 group/handle cursor-pointer"
+                      onClick={(e) => handleVendorClick(e, item.vendorHandle)}
+                    >
+                       <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                       <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest group-hover/handle:text-amber-500 transition-colors">
+                         {item.vendorHandle}
+                       </p>
+                    </div>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-2xl font-black text-black tabular-nums tracking-tighter">{formatNaira(item.numericPrice)}</p>
+                    {item.isBargainable && <p className="text-[8px] font-black text-teal-500 uppercase tracking-widest mt-1 italic">Bargain Protocol Active</p>}
+                 </div>
               </div>
             </div>
-            
-            <div className="p-10 flex justify-between items-start">
-               <div>
-                  <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1">{item.category}</p>
-                  <h3 className="text-3xl font-black italic text-black leading-tight tracking-tighter">{item.name}</h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">{item.vendorHandle}</p>
-               </div>
-               <div className="text-right">
-                  <p className="text-2xl font-black text-black tabular-nums tracking-tighter">{item.price}</p>
-                  {item.allowReferral && <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mt-1">Earning Node</p>}
-               </div>
-            </div>
+          );
+        }) : (
+          <div className="col-span-full py-48 text-center bg-white/5 rounded-[4rem] border-2 border-dashed border-white/10 animate-fade-in">
+             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 text-gray-600">
+                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+             </div>
+             <p className="text-[12px] font-black text-gray-500 uppercase tracking-[0.8em]">No Assets Detected</p>
           </div>
-        ))}
+        )}
       </div>
 
       {isViewingDetail && selectedItem && (
@@ -288,19 +326,20 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
           isWishlisted={isInWishlist(selectedItem.id)}
           onToggleWishlist={() => handleWishlistClick(null, selectedItem)}
           onClose={() => setIsViewingDetail(false)}
-          onTryOn={() => setIsTryingOn(true)}
-          onBargain={() => setIsBargaining(true)}
-          onPromote={() => handleReferral(selectedItem)}
+          onTryOn={() => { setIsViewingDetail(false); setIsTryingOn(true); }}
+          onBargain={() => { setIsViewingDetail(false); setIsBargaining(true); }}
+          onPromote={() => handleReferral(null, selectedItem)}
           onBuy={() => handleStartCheckout(selectedItem.numericPrice)}
           onAddToCollection={onAddToCollection}
           onCreateCollection={onCreateCollection}
+          onViewProfile={onViewProfile}
         />
       )}
 
       {isBargaining && selectedItem && (
         <PriceBargainModal 
           item={selectedItem} 
-          onClose={() => setIsBargaining(false)} 
+          onClose={() => { setIsBargaining(false); setIsViewingDetail(true); }} 
           onSuccess={(finalPrice) => handleStartCheckout(finalPrice)} 
         />
       )}
@@ -308,7 +347,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
       {isTryingOn && selectedItem && (
         <VirtualTryOnModal 
           item={selectedItem} 
-          onClose={() => setIsTryingOn(false)} 
+          onClose={() => { setIsTryingOn(false); setIsViewingDetail(true); }} 
           onStartBargain={() => { setIsTryingOn(false); setIsBargaining(true); }}
           onDirectBuy={() => handleStartCheckout(selectedItem.numericPrice)}
         />
@@ -318,13 +357,18 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
         <CheckoutModal 
           item={selectedItem} 
           finalPrice={checkoutPrice} 
+          balance={balance}
           onClose={() => setIsCheckingOut(false)} 
           onComplete={handleCompletePurchase}
+          onTopUp={() => onRequestViewChange && onRequestViewChange(ViewType.WALLET)}
         />
       )}
 
       {isUploading && (
-        <VendorUploadModal onClose={() => setIsUploading(false)} />
+        <VendorUploadModal 
+          onClose={() => setIsUploading(false)} 
+          onSuccess={refreshItems}
+        />
       )}
     </div>
   );

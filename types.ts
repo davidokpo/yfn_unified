@@ -6,7 +6,7 @@ export interface MarketplaceItem {
   price: string;
   numericPrice: number;
   image: string;
-  model3d?: string; // URL to GLB/USDZ asset
+  model3d?: string;
   coordinates: { x: number; y: number };
   demandLevel: 'high' | 'medium' | 'low';
   supplyLevel: 'high' | 'medium' | 'low';
@@ -36,18 +36,26 @@ export interface Transaction {
   category: 'sale' | 'purchase' | 'royalty' | 'referral' | 'reward' | 'recharge';
 }
 
-export interface UserWallet {
-  balance: number;
-  transactions: Transaction[];
+export interface YouthProfile {
+  name: string;
+  age: number;
+  origin: string;
+  school: string;
+  who: string; // Brief intro
+  what: string; // What they do
+  how: string; // What led to this/The journey
+  failures: string;
+  successes: string;
+  techStartDate: string; // When they started tech/hustle
+  image: string;
 }
 
-export interface CrystalPackage {
-  id: string;
-  credits: number;
-  price: number;
+export type ArticleType = 'COMMUNITY_HUB' | 'NEWS' | 'BUSINESS_INSIGHT' | 'CULTURE_HEAT';
+
+export interface MarketDataPoint {
   label: string;
-  bonus?: string;
-  color: string;
+  value: number;
+  event?: string;
 }
 
 export interface Article {
@@ -56,11 +64,16 @@ export interface Article {
   excerpt: string;
   content: string;
   author: string;
+  authorId: string;
   date: string;
-  category: string;
+  category: ArticleType;
   image: string;
   isHot?: boolean;
   isTrending?: boolean;
+  isAI?: boolean;
+  isOfficial?: boolean;
+  featuredProfiles?: YouthProfile[];
+  marketData?: MarketDataPoint[]; // For Pulse Intelligence charts
 }
 
 export interface UserPost {
@@ -81,5 +94,34 @@ export enum ViewType {
   NEWS = 'news',
   MARKETPLACE = 'marketplace',
   PROFILE = 'profile',
+  PUBLIC_PROFILE = 'public_profile',
   WALLET = 'wallet',
+}
+
+export interface RechargeBundle {
+  id: string;
+  amount: number;
+  price: number;
+  label: string;
+  bonus?: string;
+  color: string;
+}
+
+export interface NewsViewProps {
+  onQuote: (text: string) => void;
+  transactions?: Transaction[];
+  wishlist?: MarketplaceItem[];
+  onViewProfile: (userId: string) => void;
+}
+
+export interface ProfileViewProps {
+  userId?: string; // Optional: if provided, view this specific user
+  recentlyViewed: MarketplaceItem[];
+  wishlist: MarketplaceItem[];
+  collections: Collection[];
+  promotedItems: MarketplaceItem[];
+  transactions: Transaction[];
+  onHistoryItemClick: (item: MarketplaceItem) => void;
+  onReward: (amount: number, label: string) => void;
+  onViewProfile?: (userId: string) => void;
 }

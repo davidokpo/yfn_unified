@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { GoogleGenAI } from '@google/genai';
-import { Transaction, CrystalPackage } from '../../types';
+import { Transaction, RechargeBundle } from '../../types';
 import { RechargeModal } from '../ui/RechargeModal';
 
 interface WalletViewProps {
@@ -10,187 +9,339 @@ interface WalletViewProps {
   onTransaction: (amount: number, label: string, type: 'incoming' | 'outgoing', category?: Transaction['category']) => void;
 }
 
+interface TierConfig {
+  id: string;
+  label: string;
+  sublabel: string;
+  cardClass: string;
+  accentColor: string;
+  patternOpacity: string;
+  glowColor: string;
+  threshold: number;
+  nextLabel: string;
+  perks: string[];
+}
+
 export const WalletView: React.FC<WalletViewProps> = ({ balance, transactions, onTransaction }) => {
   const [displayBalance, setDisplayBalance] = useState(balance);
-  const [insight, setInsight] = useState<string | null>(null);
-  const [loadingInsight, setLoadingInsight] = useState(false);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [selectedBundle, setSelectedBundle] = useState<CrystalPackage | null>(null);
+  const [selectedBundle, setSelectedBundle] = useState<RechargeBundle | null>(null);
 
-  const crystalBundles: CrystalPackage[] = [
-    { id: 'B1', credits: 500, price: 5000, label: 'Seedling Bundle', color: 'bg-teal-500' },
-    { id: 'B2', credits: 1200, price: 10000, label: 'Oracle Bundle', bonus: '+20% Bonus', color: 'bg-amber-500' },
-    { id: 'B3', credits: 5000, price: 40000, label: 'Apex Node', bonus: '+50% Bonus', color: 'bg-rose-500' },
-    { id: 'B4', credits: 15000, price: 100000, label: 'Universe Tier', bonus: 'Exclusive Perk', color: 'bg-[#039be5]' },
+  // High-Fidelity Tier Configuration
+  const tier: TierConfig = useMemo(() => {
+    if (balance >= 1000000) {
+      return {
+        id: 'sovereign',
+        label: 'SOVEREIGN NODE',
+        sublabel: 'Black Obsidian Status',
+        cardClass: 'bg-black border-cyan-500/40 text-white',
+        accentColor: 'text-cyan-400',
+        patternOpacity: 'opacity-20',
+        glowColor: 'from-cyan-500/30 via-blue-500/10 to-transparent',
+        threshold: 1000000,
+        nextLabel: 'MAX CLEARANCE',
+        perks: ['0% Processing Fees', 'Priority AI Rendering', 'Unlimited Vault Storage']
+      };
+    } else if (balance >= 250000) {
+      return {
+        id: 'elite',
+        label: 'ELITE LIQUIDITY',
+        sublabel: 'Titanium Gold Status',
+        cardClass: 'bg-amber-950/40 border-amber-500/30 text-white',
+        accentColor: 'text-amber-500',
+        patternOpacity: 'opacity-15',
+        glowColor: 'from-amber-500/20 via-orange-500/10 to-transparent',
+        threshold: 250000,
+        nextLabel: 'SOVEREIGN NODE',
+        perks: ['2% Cash-back on Sales', 'Extended AI Studio Access', 'Verified Merchant Badge']
+      };
+    } else if (balance >= 50000) {
+      return {
+        id: 'merchant',
+        label: 'ACTIVE MERCHANT',
+        sublabel: 'Silver Ivory Status',
+        cardClass: 'bg-gray-900/80 border-white/20 text-white',
+        accentColor: 'text-teal-400',
+        patternOpacity: 'opacity-10',
+        glowColor: 'from-teal-500/10 via-white/5 to-transparent',
+        threshold: 50000,
+        nextLabel: 'ELITE LIQUIDITY',
+        perks: ['Marketplace Listing Access', 'Standard AI Try-On', 'Basic Wallet Sync']
+      };
+    } else {
+      return {
+        id: 'initiate',
+        label: 'INITIATE NODE',
+        sublabel: 'Standard Utility Status',
+        cardClass: 'bg-white/5 border-white/10 text-white',
+        accentColor: 'text-gray-400',
+        patternOpacity: 'opacity-05',
+        glowColor: 'from-white/5 via-transparent to-transparent',
+        threshold: 0,
+        nextLabel: 'ACTIVE MERCHANT',
+        perks: ['Basic Browsing Only', 'Limited AI Preview', 'Manual Ledger']
+      };
+    }
+  }, [balance]);
+
+  const progressInfo = useMemo(() => {
+    const thresholds = [50000, 250000, 1000000];
+    const nextIdx = thresholds.findIndex(t => t > balance);
+    if (nextIdx === -1) return { percent: 100, needed: 0, next: 'MAX ASCENSION' };
+    
+    const nextVal = thresholds[nextIdx];
+    const prevVal = nextIdx === 0 ? 0 : thresholds[nextIdx - 1];
+    const percent = Math.min(100, ((balance - prevVal) / (nextVal - prevVal)) * 100);
+    return { percent, needed: nextVal - balance, next: tier.nextLabel };
+  }, [balance, tier.nextLabel]);
+
+  const fundingBundles: RechargeBundle[] = [
+    { id: 'T1', amount: 10000.00, price: 10000.00, label: 'Standard Sync', color: 'bg-gray-400' },
+    { id: 'T2', amount: 50000.00, price: 50000.00, label: 'Merchant Clearance', bonus: 'Instant Level Up', color: 'bg-teal-500' },
+    { id: 'T3', amount: 250000.00, price: 250000.00, label: 'Elite Protocol', bonus: 'Unlock Platinum Rank', color: 'bg-amber-500' },
+    { id: 'T4', amount: 1000000.00, price: 1000000.00, label: 'Sovereign Infusion', bonus: 'Infinite Node Access', color: 'bg-cyan-500' },
   ];
 
-  // Smooth balance counter animation
+  // Fix: Calculate inflow/outflow stats from transactions history
+  const stats = useMemo(() => {
+    return transactions.reduce(
+      (acc, tx) => {
+        if (tx.type === 'incoming') acc.income += tx.amount;
+        else acc.expense += tx.amount;
+        return acc;
+      },
+      { income: 0, expense: 0 }
+    );
+  }, [transactions]);
+
+  // Fix: Filter transactions based on selected filter state
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((tx) => {
+      if (filter === 'all') return true;
+      if (filter === 'income') return tx.type === 'incoming';
+      if (filter === 'expense') return tx.type === 'outgoing';
+      return true;
+    });
+  }, [transactions, filter]);
+
   useEffect(() => {
     if (displayBalance === balance) return;
     const diff = balance - displayBalance;
-    const step = Math.max(1, Math.abs(diff) / 15);
+    const step = Math.max(0.1, Math.abs(diff) / 15);
     const timeout = setTimeout(() => {
       setDisplayBalance(prev => {
         const next = diff > 0 ? prev + step : prev - step;
         if ((diff > 0 && next > balance) || (diff < 0 && next < balance)) return balance;
         return next;
       });
-    }, 20);
+    }, 15);
     return () => clearTimeout(timeout);
   }, [balance, displayBalance]);
-
-  const getSankofaWisdom = async () => {
-    setLoadingInsight(true);
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Act as a wise African fintech mentor. The user has a balance of ${balance} Naira. Give a punchy, 2-sentence piece of advice on wealth building through royalties and social commerce.`
-      });
-      setInsight(response.text);
-    } catch (e) {
-      setInsight("True wealth is like a tree; it grows from small seeds of creativity.");
-    } finally {
-      setLoadingInsight(false);
-    }
-  };
-
-  const filteredTransactions = useMemo(() => {
-    if (filter === 'income') return transactions.filter(t => t.type === 'incoming');
-    if (filter === 'expense') return transactions.filter(t => t.type === 'outgoing');
-    return transactions;
-  }, [transactions, filter]);
-
-  const stats = useMemo(() => {
-    const income = transactions.filter(t => t.type === 'incoming').reduce((acc, t) => acc + t.amount, 0);
-    const expense = transactions.filter(t => t.type === 'outgoing').reduce((acc, t) => acc + t.amount, 0);
-    return { income, expense };
-  }, [transactions]);
 
   const handleWithdraw = () => {
     setIsWithdrawing(true);
     setTimeout(() => {
-      onTransaction(balance, "Withdrawal to Bank", "outgoing");
+      onTransaction(balance, "Withdrawal to Bank Account", "outgoing", "sale");
       setIsWithdrawing(false);
-      alert("Withdrawal initialized. Funds should settle within 24 hours.");
+      alert("Withdrawal Protocol Authenticated. Check your bank node in 15-30 mins.");
     }, 2000);
   };
 
   const handleRechargeSuccess = (amount: number) => {
-    onTransaction(amount, `Crystal Recharge: ${selectedBundle?.label}`, 'incoming', 'recharge');
+    onTransaction(amount, `Liquidity Injection: Secure Gateway`, 'incoming', 'recharge');
     setSelectedBundle(null);
   };
 
   const formatNaira = (amt: number) => 
-    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amt);
+    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 2 }).format(amt);
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-10 pb-48 animate-fade-in space-y-16">
+    <div className="max-w-4xl mx-auto px-6 py-10 pb-48 animate-fade-in space-y-24">
       
-      {/* Dynamic Balance Header */}
-      <div className="bg-white text-black rounded-[4rem] p-12 md:p-20 flex flex-col items-center text-center shadow-2xl relative overflow-hidden shimmer-titanium">
-        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500"></div>
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.5em] mb-4">Settlement Balance</p>
-        <h2 className="text-6xl md:text-8xl font-black italic tabular-nums leading-none tracking-tighter mb-8 transition-all">
-          {Math.floor(displayBalance).toLocaleString()}
-        </h2>
-        
-        <div className="flex gap-4">
-           <button 
-             onClick={handleWithdraw}
-             disabled={balance <= 0 || isWithdrawing}
-             className="px-10 py-4 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 transition-all spring-pop disabled:opacity-20 shadow-xl"
-           >
-             {isWithdrawing ? "Transferring..." : "Withdraw"}
-           </button>
-           <button 
-            onClick={() => {
-              const element = document.getElementById('crystal-shop');
-              element?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="w-14 h-14 bg-amber-500 text-black rounded-full flex items-center justify-center hover:bg-amber-400 transition-all spring-pop shadow-lg animate-pulse"
-          >
-             <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-           </button>
+      {/* 1. Sovereign Identity Card */}
+      <div className="relative group perspective-1000">
+        <div className={`absolute -inset-10 bg-gradient-to-tr ${tier.glowColor} rounded-[8rem] blur-[120px] transition-all duration-1000`}></div>
+        <div className={`relative ${tier.cardClass} backdrop-blur-3xl rounded-[5rem] p-12 md:p-20 flex flex-col items-center text-center shadow-2xl overflow-hidden border ring-1 ring-white/10 transition-all duration-1000`}>
+          
+          {/* Scanning Line Effect */}
+          <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/10 to-transparent -translate-y-full animate-[shimmer_4s_infinite_linear] pointer-events-none opacity-20"></div>
+
+          {/* Pattern Layer */}
+          <div className={`absolute inset-0 ${tier.patternOpacity} pointer-events-none transition-opacity duration-1000`}>
+            <svg width="100%" height="100%">
+              <pattern id="kente-sovereign" x="0" y="0" width="120" height="120" patternUnits="userSpaceOnUse">
+                <path d="M0 60 L60 0 L120 60 L60 120 Z" fill="none" stroke="currentColor" strokeWidth="1" />
+                <circle cx="60" cy="60" r="30" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="5 5" />
+              </pattern>
+              <rect width="100%" height="100%" fill="url(#kente-sovereign)" />
+            </svg>
+          </div>
+
+          <div className="relative z-10 space-y-12 w-full">
+            <div className="space-y-4">
+              <div className="flex flex-col items-center">
+                <div className={`px-6 py-2 rounded-full border border-current mb-8 ${tier.accentColor} bg-current/5 transition-colors duration-1000`}>
+                   <span className="text-[11px] font-black uppercase tracking-[0.5em]">{tier.label}</span>
+                </div>
+                <p className="text-[12px] font-black text-gray-500 uppercase tracking-[0.3em] italic mb-2">{tier.sublabel}</p>
+                <h2 className="text-6xl md:text-[8rem] font-black italic tabular-nums leading-none tracking-tighter group-hover:scale-105 transition-transform duration-1000">
+                  {new Intl.NumberFormat('en-NG', { maximumFractionDigits: 0 }).format(displayBalance)}
+                  <span className="text-4xl opacity-30 ml-2">.{(displayBalance % 1).toFixed(2).split('.')[1]}</span>
+                </h2>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+              {tier.perks.map((perk, i) => (
+                <div key={i} className="flex items-center gap-3 px-6 py-4 bg-white/5 rounded-2xl border border-white/5">
+                   <div className={`w-1.5 h-1.5 rounded-full ${tier.accentColor.replace('text', 'bg')}`}></div>
+                   <span className="text-[9px] font-black uppercase tracking-widest text-gray-300">{perk}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-6 pt-6">
+              <button 
+                onClick={handleWithdraw}
+                disabled={balance <= 0 || isWithdrawing}
+                className="px-16 py-6 bg-white text-black rounded-full text-[11px] font-black uppercase tracking-[0.3em] hover:bg-amber-500 transition-all spring-pop disabled:opacity-20 shadow-2xl active:scale-95"
+              >
+                {isWithdrawing ? "Transmitting..." : "Withdraw Funds"}
+              </button>
+              <button 
+                onClick={() => document.getElementById('evolution-node')?.scrollIntoView({ behavior: 'smooth' })}
+                className="px-16 py-6 bg-white/10 backdrop-blur-2xl text-white border border-white/10 rounded-full text-[11px] font-black uppercase tracking-[0.3em] hover:bg-white/20 transition-all shadow-xl spring-pop"
+              >
+                Inject Liquidity
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Crystal Shop Section */}
-      <div id="crystal-shop" className="space-y-8">
-        <div className="flex justify-between items-center px-4">
-           <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">Recharge Credits</h3>
-           <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full uppercase tracking-widest border border-amber-500/20">Hot Bundles</span>
+      {/* 2. Node Evolution Protocol */}
+      <div id="evolution-node" className="space-y-16 pt-8 scroll-mt-32">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 px-8">
+           <div className="space-y-4 text-left max-w-xl">
+             <div className="flex items-center gap-4">
+               <h3 className="text-[18px] font-black uppercase tracking-[0.6em] text-white">Evolution Protocol</h3>
+               <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg">
+                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">v4.0.96</span>
+               </div>
+             </div>
+             <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest italic leading-relaxed">
+               Add liquidity to stabilize your node and unlock higher clearance levels.
+             </p>
+           </div>
+           
+           {/* High-Performance Progress Bar */}
+           <div className="flex-1 max-w-md space-y-4">
+              <div className="flex justify-between items-end">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block">Clearance Progress</span>
+                  <span className="text-[12px] font-black text-white italic tracking-widest">TO {progressInfo.next}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-black text-white italic tabular-nums leading-none">{Math.floor(progressInfo.percent)}%</span>
+                </div>
+              </div>
+              <div className="h-3 bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                <div 
+                  className={`h-full transition-all duration-1000 ease-out rounded-full relative group ${tier.accentColor.replace('text', 'bg')}`}
+                  style={{ width: `${progressInfo.percent}%` }}
+                >
+                  <div className="absolute top-0 right-0 h-full w-4 bg-white/40 blur-sm"></div>
+                </div>
+              </div>
+              {progressInfo.needed > 0 && (
+                <div className="flex justify-between items-center px-1">
+                  <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">
+                    ₦{progressInfo.needed.toLocaleString()} DELTA
+                  </p>
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className={`w-1 h-1 rounded-full ${progressInfo.percent > (i*20) ? tier.accentColor.replace('text', 'bg') : 'bg-white/10'}`}></div>
+                    ))}
+                  </div>
+                </div>
+              )}
+           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {crystalBundles.map((bundle) => (
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 px-4">
+          {fundingBundles.map((bundle) => (
             <button 
               key={bundle.id}
               onClick={() => setSelectedBundle(bundle)}
-              className={`group relative p-6 rounded-[2.5rem] border border-white/5 transition-all spring-pop overflow-hidden ${bundle.color} hover:scale-105 active:scale-95 text-left`}
+              className="group relative p-12 rounded-[5rem] bg-[#0a0a0a] border border-white/5 transition-all duration-700 spring-pop hover:bg-white/[0.04] hover:border-white/20 text-center shadow-2xl flex flex-col items-center gap-12 overflow-hidden"
             >
-               <div className="absolute -right-4 -top-4 w-12 h-12 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-1000"></div>
-               <div className="space-y-1 relative z-10">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-white/60 mb-2 truncate">{bundle.label}</p>
-                  <h4 className="text-2xl font-black italic tracking-tighter text-white leading-tight">{bundle.credits}</h4>
-                  <p className="text-[10px] font-bold text-white/80">₦{bundle.price.toLocaleString()}</p>
-                  {bundle.bonus && (
-                    <div className="mt-4 inline-block px-2 py-1 bg-black/40 backdrop-blur-md rounded-lg text-[7px] font-black text-white uppercase tracking-widest">
+               {/* Animated Aura for the bundle */}
+               <div className={`absolute top-0 inset-x-0 h-2 ${bundle.color} opacity-40 group-hover:h-3 group-hover:opacity-100 transition-all duration-500`}></div>
+               
+               <div className={`w-32 h-32 rounded-[4rem] flex items-center justify-center text-6xl shadow-2xl ${bundle.color} bg-opacity-5 border border-white/5 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-700`}>
+                 <span className="filter drop-shadow-2xl scale-125">🏛️</span>
+               </div>
+               
+               <div className="space-y-4">
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-500 group-hover:text-white transition-colors">{bundle.label}</p>
+                  <h4 className="text-5xl font-black italic tracking-tighter text-white">₦{bundle.amount.toLocaleString(undefined, { minimumFractionDigits: 0 })}</h4>
+               </div>
+
+               <div className="min-h-[32px]">
+                 {bundle.bonus && (
+                    <div className="px-8 py-3 bg-white/5 text-gray-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/5 shadow-inner group-hover:border-white/30 group-hover:text-white transition-all">
                       {bundle.bonus}
                     </div>
-                  )}
+                 )}
                </div>
-               <div className="absolute bottom-4 right-4 text-white opacity-20 group-hover:opacity-100 transition-all group-hover:translate-x-1">
-                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+               
+               <div className="py-6 px-16 bg-white text-black text-[11px] font-black uppercase tracking-[0.4em] rounded-full opacity-0 group-hover:opacity-100 translate-y-8 group-hover:translate-y-0 transition-all duration-500 shadow-2xl flex items-center justify-center gap-4">
+                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                 <span>Authorize</span>
                </div>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Analytics Grid */}
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-2 group hover:bg-white/10 transition-colors">
-           <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover:text-teal-400 transition-colors">Total Earned</p>
-           <p className="text-2xl font-black text-teal-400 tabular-nums">{formatNaira(stats.income)}</p>
+      {/* 3. Transaction Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 px-4">
+        <div className="bg-[#0a0a0a] backdrop-blur-3xl p-16 space-y-8 rounded-[5rem] border border-white/5 shadow-2xl group hover:border-teal-500/20 transition-all duration-1000">
+           <div className="flex justify-between items-center">
+             <div>
+               <p className="text-[11px] font-black text-gray-500 uppercase tracking-[0.5em] mb-1">Inflow Nodes</p>
+               <p className="text-[9px] font-black text-teal-500 uppercase tracking-widest">Protocol Verified</p>
+             </div>
+             <div className="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-400 text-2xl">↑</div>
+           </div>
+           <p className="text-6xl font-black text-teal-400 tabular-nums tracking-tighter italic">{formatNaira(stats.income)}</p>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-2 group hover:bg-white/10 transition-colors">
-           <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover:text-rose-400 transition-colors">Total Spent</p>
-           <p className="text-2xl font-black text-rose-400 tabular-nums">{formatNaira(stats.expense)}</p>
+        <div className="bg-[#0a0a0a] backdrop-blur-3xl p-16 space-y-8 rounded-[5rem] border border-white/5 shadow-2xl group hover:border-rose-500/20 transition-all duration-1000">
+           <div className="flex justify-between items-center">
+             <div>
+               <p className="text-[11px] font-black text-gray-500 uppercase tracking-[0.5em] mb-1">Outflow Nodes</p>
+               <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Secure Settlements</p>
+             </div>
+             <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center text-rose-400 text-2xl">↓</div>
+           </div>
+           <p className="text-6xl font-black text-rose-400 tabular-nums tracking-tighter italic">{formatNaira(stats.expense)}</p>
         </div>
       </div>
 
-      {/* Merchant Insights (AI) */}
-      <div className="bg-gradient-to-br from-amber-500/10 to-transparent border border-amber-500/20 rounded-[3rem] p-10 space-y-6 relative group overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/10 transition-all"></div>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-black shadow-lg animate-sankofa">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z"/></svg>
+      {/* 4. Historical Ledger */}
+      <div className="space-y-16">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 px-10">
+          <div className="space-y-4">
+            <h3 className="text-[16px] font-black uppercase tracking-[0.8em] text-white">Historical Ledger</h3>
+            <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Immutable transaction sequence</p>
           </div>
-          <h4 className="text-xs font-black uppercase tracking-[0.3em] text-amber-500">Node Insights</h4>
-        </div>
-        <p className="text-xl font-medium text-gray-200 italic leading-relaxed min-h-[3rem]">
-          {insight || "Your creative capital is growing. Diversify your designs to increase royalty streams."}
-        </p>
-        <button 
-          onClick={getSankofaWisdom}
-          disabled={loadingInsight}
-          className="text-[10px] font-black uppercase text-amber-500 tracking-widest hover:text-white transition-all underline underline-offset-8 decoration-2 spring-pop"
-        >
-          {loadingInsight ? "Querying Neural Bank..." : "Get Market Wisdom"}
-        </button>
-      </div>
-
-      {/* Transaction Ledger */}
-      <div className="space-y-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">Transaction Ledger</h3>
-          <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
+          <div className="flex bg-[#0a0a0a] p-2.5 rounded-[3rem] border border-white/10 shadow-2xl">
              {(['all', 'income', 'expense'] as const).map((t) => (
                <button 
                  key={t}
                  onClick={() => setFilter(t)}
-                 className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all spring-pop ${filter === t ? 'bg-white text-black shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                 className={`px-16 py-5 rounded-[2.5rem] text-[12px] font-black uppercase tracking-[0.3em] transition-all duration-500 spring-pop ${filter === t ? 'bg-white text-black shadow-2xl scale-105' : 'text-gray-500 hover:text-white'}`}
                >
                  {t}
                </button>
@@ -198,41 +349,39 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, transactions, o
           </div>
         </div>
 
-        <div className="space-y-4">
-          {filteredTransactions.length > 0 ? (
-            filteredTransactions.map((tx) => (
-              <div key={tx.id} className="bg-white/5 p-8 rounded-[3rem] flex items-center justify-between border border-white/5 group hover:bg-white/[0.08] hover:border-white/10 transition-all spring-pop cursor-default">
-                <div className="flex items-center gap-6">
-                  <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center text-xl transition-all ${
-                    tx.type === 'incoming' 
-                    ? 'bg-teal-500/10 text-teal-400 group-hover:bg-teal-500/20' 
-                    : 'bg-white/5 text-gray-500 group-hover:bg-white/10'
-                  }`}>
-                    {tx.category === 'recharge' ? '⚡' : tx.category === 'royalty' ? '®' : tx.category === 'referral' ? '🔗' : tx.category === 'sale' ? '🛍️' : '₦'}
-                  </div>
-                  <div>
-                    <p className="text-xl font-black italic tracking-tighter group-hover:text-white transition-colors leading-tight">{tx.label}</p>
-                    <div className="flex items-center gap-3 mt-1">
-                       <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${
-                         tx.type === 'incoming' ? 'bg-teal-500/20 text-teal-500' : 'bg-rose-500/20 text-rose-500'
-                       }`}>
-                         {tx.category}
-                       </span>
-                       <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">{tx.date}</span>
-                    </div>
-                  </div>
+        <div className="space-y-12 px-4">
+          {filteredTransactions.length > 0 ? filteredTransactions.map((tx) => (
+            <div key={tx.id} className="group bg-[#0a0a0a] p-12 md:p-20 rounded-[7rem] flex flex-col md:flex-row md:items-center justify-between border border-white/5 hover:bg-white/[0.04] hover:border-white/20 transition-all duration-1000 shadow-2xl relative overflow-hidden">
+              <div className="flex items-center gap-16 relative z-10">
+                <div className={`w-36 h-36 rounded-[4rem] flex items-center justify-center text-7xl shadow-inner border group-hover:scale-110 duration-700 ${
+                  tx.type === 'incoming' 
+                  ? 'bg-teal-500/10 text-teal-400 border-teal-500/10' 
+                  : 'bg-white/5 text-gray-700 border-white/5'
+                }`}>
+                  {tx.category === 'recharge' ? '⚡' : tx.category === 'royalty' ? '®' : tx.category === 'referral' ? '🔗' : '🛍️'}
                 </div>
-                <div className="text-right">
-                  <p className={`text-2xl font-black tabular-nums ${tx.type === 'incoming' ? 'text-teal-400' : 'text-white'}`}>
-                    {tx.type === 'incoming' ? '+' : '-'}{tx.amount.toLocaleString()}
-                  </p>
-                  <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Confirmed Node</p>
+                <div className="space-y-6 text-left">
+                  <p className="text-5xl font-black italic tracking-tighter text-white leading-tight group-hover:translate-x-2 transition-transform duration-500">{tx.label}</p>
+                  <div className="flex items-center gap-10">
+                     <span className={`text-[11px] font-black uppercase px-10 py-3 rounded-full tracking-[0.4em] ${
+                       tx.type === 'incoming' ? 'bg-teal-500 text-black' : 'bg-gray-800 text-gray-400'
+                     }`}>
+                       {tx.category}
+                     </span>
+                     <span className="text-[14px] font-bold text-gray-600 uppercase tracking-widest italic">{tx.date}</span>
+                  </div>
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="py-20 text-center space-y-4 bg-white/2 rounded-[3rem] border border-dashed border-white/5">
-               <p className="text-gray-600 font-bold uppercase text-[10px] tracking-widest">No matching records in the ledger</p>
+              <div className="text-right mt-12 md:mt-0">
+                <p className={`text-7xl font-black tabular-nums tracking-tighter ${tx.type === 'incoming' ? 'text-teal-400' : 'text-white'}`}>
+                  {tx.type === 'incoming' ? '+' : '-'}{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest mt-2">Verified Node Settlement</p>
+              </div>
+            </div>
+          )) : (
+            <div className="py-64 text-center bg-[#0a0a0a] rounded-[7rem] border-2 border-dashed border-white/5">
+              <p className="text-[14px] font-black text-gray-600 uppercase tracking-[2em]">Ledger Clear</p>
             </div>
           )}
         </div>

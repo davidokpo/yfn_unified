@@ -1,14 +1,15 @@
 
 // Firebase Configuration for the YFN Social Commerce Node
-// Using the compatibility SDK for immediate integration with direct GenAI calls
+// Consuming environment variables from the local .env file (Vite VITE_ prefix)
 
 const firebaseConfig = {
-  apiKey: process.env.API_KEY, 
-  authDomain: "yfn-creative-universe.firebaseapp.com",
-  projectId: "yfn-creative-universe",
-  storageBucket: "yfn-creative-universe.appspot.com",
-  messagingSenderId: "999999999999",
-  appId: "1:999999999999:web:aaaaaaaaaaaaaaaa"
+  // Use process.env as configured in the project environment to access Firebase variables
+  apiKey: process.env.VITE_FIREBASE_API_KEY,
+  authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.VITE_FIREBASE_APP_ID,
 };
 
 const firebaseInstance = (window as any).firebase;
@@ -20,11 +21,18 @@ let cloudState: 'active' | 'local' | 'connecting' = 'connecting';
 
 /**
  * Initializes Firebase with fail-safe mechanisms.
- * If authentication fails, it proactively disables Firestore to prevent permission-denied logs.
+ * Integrates with Youth Future Network (YFN) cloud services via environment variables.
  */
 export const initFirebase = async () => {
   if (!firebaseInstance) {
-    console.warn("YFN: Firebase SDK missing.");
+    console.warn("YFN: Firebase SDK missing from index.html.");
+    cloudState = 'local';
+    return { app: null, db: null, auth: null, mode: 'local' };
+  }
+
+  // Check if env variables are present using process.env instead of import.meta.env
+  if (!process.env.VITE_FIREBASE_API_KEY) {
+    console.warn("YFN: Missing Firebase Environment Variables. Defaulting to Local Sovereignty.");
     cloudState = 'local';
     return { app: null, db: null, auth: null, mode: 'local' };
   }
@@ -37,38 +45,35 @@ export const initFirebase = async () => {
     }
     
     auth = firebaseInstance.auth();
-    // We don't initialize 'db' globally yet to prevent premature connection attempts
 
-    // 1. Authentication Protocol
+    // Authentication Protocol
     let authSuccess = false;
     try {
+      // Anonymous authentication is used to establish a secure spatial session
       await auth.signInAnonymously();
       authSuccess = true;
-      console.log("YFN: Cloud Identity Authenticated.");
+      console.log("YFN: Cloud Identity Authenticated via Environment Node.");
     } catch (err: any) {
-      console.warn(`YFN Auth Failure: ${err.message}. Defaulting to Local Sovereign Mode.`);
+      console.warn(`YFN Auth Failure: ${err.message}. Ensure Anonymous Auth is enabled in Firebase Console.`);
     }
 
-    // 2. Conditional Cloud Initialization
+    // Database Protocol
     if (authSuccess) {
       db = firebaseInstance.firestore();
       
-      // Attempt persistence silently
       try {
         await db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
       } catch (e) {}
 
-      // 3. Permission Health Check
       try {
-        // We use a very light probe. 
-        // If this fails, we nullify db to prevent the rest of the app from triggering logs.
+        // Verification probe to confirm project access
         await db.collection('_health').limit(1).get();
         cloudState = 'active';
-        console.log("YFN: Cloud Node Handshake Successful.");
+        console.log("YFN: Cloud Node Handshake Successful. Universe Synced.");
       } catch (err: any) {
         if (err.code === 'permission-denied') {
-          console.warn("YFN: Cloud Permissions Denied. Firestore Node Deactivated.");
-          db = null; // Kill the db reference to prevent further attempts
+          console.warn("YFN: Cloud Permissions Denied. Check Firestore Rules and API Key restrictions.");
+          db = null;
           cloudState = 'local';
         }
       }
@@ -86,5 +91,4 @@ export const initFirebase = async () => {
   }
 };
 
-// Global Cloud Mode Export
 export { app, db, auth, cloudState, firebaseInstance as firebase };

@@ -1,14 +1,12 @@
 
-// Import firebase alongside db to access FieldValue
 import { db, firebase } from './firebase';
 import { MarketplaceItem, Article, UserPost, Transaction, Collection } from '../types';
 
-// Initial Seed Data for the Marketplace Node - Exported as MOCK_ITEMS
 export const MOCK_ITEMS: MarketplaceItem[] = [
   {
     id: 1,
     name: "Premium Silk Agbada",
-    category: "Apparel",
+    category: "APPAREL",
     price: "₦850,000",
     numericPrice: 850000,
     image: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=800&h=1200&auto=format&fit=crop",
@@ -22,58 +20,83 @@ export const MOCK_ITEMS: MarketplaceItem[] = [
     vendorHandle: "@vance_studio",
     allowReferral: true,
     referralFee: 25000,
-    description: "Hand-woven silk Agbada with modern embroidery patterns. Breathable and luxurious spatial asset."
+    description: "Hand-woven silk Agbada with modern embroidery patterns. A staple of the 2025 luxury protocol."
   },
   {
     id: 2,
-    name: "Canvas Tech Tote",
-    category: "Bags",
-    price: "₦120,000",
-    numericPrice: 120000,
-    image: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=800&h=1200&auto=format&fit=crop",
-    model3d: "https://modelviewer.dev/shared-assets/models/Horse.glb",
-    coordinates: { x: 70, y: 15 },
-    demandLevel: 'medium',
-    supplyLevel: 'medium',
-    isBargainable: true,
-    minPrice: 100000,
-    vendorRating: 4.5,
-    vendorHandle: "@lagos_leather",
-    allowReferral: true,
-    referralFee: 5000,
-    description: "Rugged canvas tote with padded laptop sleeve and artisanal brass zippers."
-  },
-  {
-    id: 3,
-    name: "Urban Kente Sneakers",
-    category: "Footwear",
-    price: "₦145,000",
-    numericPrice: 145000,
-    image: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?q=80&w=800&h=1200&auto=format&fit=crop",
-    coordinates: { x: 85, y: 80 },
+    name: "The 'Executive' Fade & Beard Grooming",
+    category: "SERVICES",
+    price: "₦25,000",
+    numericPrice: 25000,
+    image: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=800&h=800&auto=format&fit=crop",
+    coordinates: { x: 45, y: 60 },
     demandLevel: 'high',
     supplyLevel: 'medium',
     isBargainable: false,
-    minPrice: 145000,
+    minPrice: 25000,
     vendorRating: 4.9,
-    vendorHandle: "@kente_kicks",
-    allowReferral: false,
-    description: "Limited edition sneakers featuring authentic Kente patterns on a high-performance sole."
+    vendorHandle: "@clipper_node",
+    allowReferral: true,
+    referralFee: 2000,
+    description: "Mobile premium barbing service. Includes deep conditioning, hot towel treatment, and precision fade. Experience the ultimate grooming node."
+  },
+  {
+    id: 3,
+    name: "Artisanal Leather Tote",
+    category: "BAGS",
+    price: "₦120,000",
+    numericPrice: 120000,
+    image: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=800&h=1200&auto=format&fit=crop",
+    coordinates: { x: 70, y: 20 },
+    demandLevel: 'medium',
+    supplyLevel: 'low',
+    isBargainable: true,
+    minPrice: 95000,
+    vendorRating: 4.7,
+    vendorHandle: "@davina_soles",
+    allowReferral: true,
+    referralFee: 5000,
+    description: "Hand-stitched full-grain leather tote. Built for durability and refined for the modern Lagosian elite."
   }
 ];
 
 export const MOCK_ARTICLES: Article[] = [
   {
-    id: 1,
-    title: "The Rise of Consumer-Created Design",
-    excerpt: "How AI is allowing shoppers to become the next generation of fashion moguls.",
-    content: "The market is shifting. We are no longer just buying what's on the shelf; we are designing it. With royalties now flowing back to authors, the power has truly returned to the people.",
-    author: "Tunde Akerele",
-    date: "2h ago",
-    category: "Economy",
-    image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=1200&h=800&auto=format&fit=crop",
-    isHot: true,
+    id: 100,
+    title: "The Universe Protocol: Official 2025 Vision",
+    excerpt: "YFN Official outlines the strategic roadmap for the creative economy integration.",
+    content: "Youth Future Network (YFN) is transitioning from a platform to a protocol. Our mission for 2025 focuses on three core nodes: Liquidity Sovereignty, AI Co-Creation, and Cultural Archiving. We are building the infrastructure that allows every creator to own their IP and every merchant to scale globally without friction.",
+    author: "YFN Official",
+    authorId: "yfn_universe",
+    date: "Just now",
+    category: "NEWS",
+    isOfficial: true,
+    image: "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=1200&h=800&auto=format&fit=crop",
+    isHot: true
+  },
+  {
+    id: 401,
+    title: "The Leather Ledger: 2025 Sourcing",
+    excerpt: "Why the future of African luxury starts with ethical hide sovereignty.",
+    content: "Luxury is moving away from the mass-produced toward the hyper-local. In this piece, Davina explores how Nigerian tanneries are outpacing European counterparts in texture and durability. We explore the high-fidelity sourcing nodes that power Davina Soles.",
+    author: "Davina Soles",
+    authorId: "davina_soles",
+    date: "1d ago",
+    category: "BUSINESS_INSIGHT",
+    image: "https://images.unsplash.com/photo-1530519729491-acf50994c650?q=80&w=1200&h=800&auto=format&fit=crop",
     isTrending: true
+  },
+  {
+    id: 1,
+    title: "The 2025 Ledger: 10 Youths Defining the New Lagos",
+    excerpt: "The authoritative selection of innovators rewriting the Nigerian success protocol.",
+    content: "The landscape of Nigerian success is shifting from resource extraction to digital sovereignty...",
+    author: "Zion Vance",
+    authorId: "0xVANCE_82",
+    date: "2h ago",
+    category: "COMMUNITY_HUB",
+    image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=1200&h=800&auto=format&fit=crop",
+    isHot: true
   }
 ];
 
@@ -90,10 +113,7 @@ export const MOCK_POSTS: UserPost[] = [
   }
 ];
 
-// Firebase Service Layer
 const USER_NODE_ID = "0xVANCE_82"; 
-
-// Safety Check to prevent noisy permission logs
 const canUseCloud = () => db !== null;
 
 export const FirebaseService = {
@@ -108,7 +128,6 @@ export const FirebaseService = {
           batch.set(ref, item);
         });
         await batch.commit();
-        console.log("YFN: Marketplace Node Synchronized.");
       }
     } catch (e) {}
   },
@@ -124,24 +143,27 @@ export const FirebaseService = {
     }
   },
 
+  addItemToMarketplace: async (item: MarketplaceItem) => {
+    if (!canUseCloud()) {
+       MOCK_ITEMS.unshift(item);
+       return;
+    }
+    try {
+      await db.collection('marketplace_items').doc(item.id.toString()).set(item);
+    } catch (e) {}
+  },
+
   syncUserNode: async (callback: (data: any) => void) => {
     const defaultData = { balance: 2450500.00, wishlist: [], recentlyViewed: [], promotedItems: [] };
     if (!canUseCloud()) {
       callback(defaultData);
       return () => {};
     }
-    
     try {
-      return db.collection('users').doc(USER_NODE_ID).onSnapshot(
-        (doc: any) => {
-          if (doc.exists) callback(doc.data());
-          else {
-            db.collection('users').doc(USER_NODE_ID).set(defaultData).catch(() => {});
-            callback(defaultData);
-          }
-        },
-        (error: any) => callback(defaultData)
-      );
+      return db.collection('users').doc(USER_NODE_ID).onSnapshot((doc: any) => {
+        if (doc.exists) callback(doc.data());
+        else callback(defaultData);
+      });
     } catch (e) {
       callback(defaultData);
       return () => {};
@@ -162,68 +184,43 @@ export const FirebaseService = {
         ...tx,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
-      
       const userRef = db.collection('users').doc(USER_NODE_ID);
       await db.runTransaction(async (transaction: any) => {
         const userDoc = await transaction.get(userRef);
         if (!userDoc.exists) return;
         const currentBalance = userDoc.data().balance || 0;
-        const newBalance = tx.type === 'incoming' 
-          ? currentBalance + tx.amount 
-          : currentBalance - tx.amount;
+        const newBalance = tx.type === 'incoming' ? currentBalance + tx.amount : currentBalance - tx.amount;
         transaction.update(userRef, { balance: newBalance });
       });
     } catch (e) {}
   },
 
   fetchTransactions: async (callback: (txs: Transaction[]) => void) => {
-    if (!canUseCloud()) {
-      callback([]);
-      return () => {};
-    }
+    if (!canUseCloud()) { callback([]); return () => {}; }
     try {
       return db.collection('users').doc(USER_NODE_ID).collection('transactions')
         .orderBy('timestamp', 'desc')
-        .onSnapshot(
-          (snapshot: any) => {
-            const txs = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-            callback(txs);
-          },
-          (error: any) => callback([])
-        );
-    } catch (e) {
-      callback([]);
-      return () => {};
-    }
+        .onSnapshot((snapshot: any) => {
+          callback(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        });
+    } catch (e) { callback([]); return () => {}; }
   },
 
   fetchCollections: async (callback: (cols: Collection[]) => void) => {
-    if (!canUseCloud()) {
-      callback([]);
-      return () => {};
-    }
+    if (!canUseCloud()) { callback([]); return () => {}; }
     try {
       return db.collection('users').doc(USER_NODE_ID).collection('collections')
-        .onSnapshot(
-          (snapshot: any) => {
-            const cols = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-            callback(cols);
-          },
-          (error: any) => callback([])
-        );
-    } catch (e) {
-      callback([]);
-      return () => {};
-    }
+        .onSnapshot((snapshot: any) => {
+          callback(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+        });
+    } catch (e) { callback([]); return () => {}; }
   },
 
   addCollection: async (name: string, itemIds: number[]) => {
     if (!canUseCloud()) return;
     try {
       await db.collection('users').doc(USER_NODE_ID).collection('collections').add({
-        name,
-        itemIds,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        name, itemIds, createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     } catch (e) {}
   },

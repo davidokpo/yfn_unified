@@ -71,9 +71,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ items, onSelectI
             style={{ left: `${item.coordinates.x}%`, top: `${item.coordinates.y}%` }}
           >
             <div className={`relative -ml-4 -mt-4 flex flex-col items-center`}>
-              {/* Radar Pulse for Closest Node */}
+              {/* Enhanced Aura for Closest Node */}
               {isClosest && (
-                <div className="absolute inset-0 w-8 h-8 rounded-full border-2 border-teal-500 animate-ping opacity-40" />
+                <>
+                  <div className="absolute inset-0 w-8 h-8 rounded-full border-4 border-teal-500 animate-ping opacity-60" />
+                  <div className="absolute inset-0 w-8 h-8 rounded-full border border-teal-400 animate-ping opacity-30 delay-300" />
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                    <span className="px-2 py-0.5 bg-teal-500 text-black text-[7px] font-black uppercase tracking-widest rounded shadow-[0_0_10px_rgba(20,184,166,0.8)] animate-bounce">
+                      Closest
+                    </span>
+                  </div>
+                </>
               )}
               
               <div 
@@ -81,7 +89,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ items, onSelectI
                   w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all duration-500 shadow-2xl backdrop-blur-md
                   ${isSelected ? 'border-white bg-white/40 ring-4 ring-white/10' : 
                     filterType === 'rating' && isTopRated ? 'border-amber-500 bg-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.5)]' :
-                    isClosest ? 'border-teal-400 bg-teal-400/30 shadow-[0_0_20px_rgba(20,184,166,0.5)]' : 
+                    isClosest ? 'border-teal-400 bg-teal-400/40 shadow-[0_0_25px_rgba(20,184,166,0.7)] scale-110' : 
                     'border-white/20 bg-black/40 hover:border-white/60'}
                 `}
               >
@@ -89,7 +97,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ items, onSelectI
                   <span className="text-[10px] text-amber-500 font-black">★</span>
                 )}
                 {!isTopRated && isClosest && (
-                  <div className="w-2 h-2 bg-teal-400 rounded-full" />
+                  <div className="w-2.5 h-2.5 bg-teal-400 rounded-full shadow-[0_0_8px_white] animate-pulse" />
                 )}
                 {!isTopRated && !isClosest && (
                   <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-white/40 group-hover:bg-white transition-colors'}`} />
