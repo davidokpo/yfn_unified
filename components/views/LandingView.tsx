@@ -114,7 +114,7 @@ export const LandingView: React.FC<{ onEnter: () => void }> = ({ onEnter }) => {
           YFN
         </h1>
         <p className="text-cyan-400 font-mono text-sm md:text-base tracking-widest mb-12 animate-pulse">
-          THE UNIFIED CREATIVE UNIVERSE
+          SOCIAL COMMERCE REIMAGINED
         </p>
         
         <button 
@@ -122,14 +122,14 @@ export const LandingView: React.FC<{ onEnter: () => void }> = ({ onEnter }) => {
           className="group relative px-12 py-4 font-bold text-white transition-all duration-300"
         >
           <div className="absolute inset-0 bg-white/10 group-hover:bg-cyan-500/20 rounded-full border border-white/20 group-hover:border-cyan-500/50 backdrop-blur-sm transition-all"></div>
-          <span className="relative z-10 tracking-[0.2em] group-hover:tracking-[0.4em] transition-all">INITIALIZE</span>
+          <span className="relative z-10 tracking-[0.2em] group-hover:tracking-[0.4em] transition-all">START EXPLORING</span>
         </button>
       </div>
 
       <div className="absolute bottom-10 left-0 right-0 flex justify-center space-x-8 opacity-40 text-xs tracking-widest uppercase">
         <span>V 1.0.0</span>
-        <span>Secure Protocol 4096</span>
-        <span>Neural Node Online</span>
+        <span>Secure Connection</span>
+        <span>Online</span>
       </div>
     </div>
   );

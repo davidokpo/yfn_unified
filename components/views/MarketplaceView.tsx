@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { FirebaseService } from '../../lib/database';
-import { MarketplaceItem, Collection, ViewType } from '../../types';
+import { MarketplaceItem, Collection, ViewType, Transaction } from '../../types';
 import { PriceBargainModal } from '../ui/PriceBargainModal';
 import { VirtualTryOnModal } from '../ui/VirtualTryOnModal';
 import { InteractiveMap } from '../ui/InteractiveMap';
@@ -14,8 +14,9 @@ interface MarketplaceViewProps {
   initialItem?: MarketplaceItem | null;
   wishlist: MarketplaceItem[];
   collections: Collection[];
+  activeTrackingTx?: Transaction | null;
   onReward: (amount: number, label: string) => void;
-  onPurchase: (amount: number, label: string) => void;
+  onPurchase: (amount: number, label: string, item: MarketplaceItem) => void;
   onViewItem: (item: MarketplaceItem) => void;
   onToggleWishlist: (item: MarketplaceItem) => void;
   onAddToCollection: (collectionId: string, itemId: number) => void;
@@ -30,6 +31,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   initialItem, 
   wishlist,
   collections,
+  activeTrackingTx = null,
   onReward, 
   onPurchase, 
   onViewItem,
@@ -55,10 +57,8 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   const [filterType, setFilterType] = useState<'location' | 'rating'>('location');
   const [activeCategory, setActiveCategory] = useState('ALL');
 
-  // Inform the App shell to hide the bottom nav when an overlay is active
   useEffect(() => {
     const isOverlayOpen = isViewingDetail || isBargaining || isTryingOn || isUploading || isCheckingOut;
-    // We can use a custom event to communicate with App.tsx if we don't have a prop
     const event = new CustomEvent('yfn-modal-toggle', { detail: { open: isOverlayOpen } });
     window.dispatchEvent(event);
   }, [isViewingDetail, isBargaining, isTryingOn, isUploading, isCheckingOut]);
@@ -106,7 +106,8 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
     }
   }, [items, searchQuery, filterType, activeCategory]);
 
-  const showMap = searchQuery.trim().length > 0 || filterType === 'location';
+  // Map should be shown if searching, filtering by location, or if an order is being tracked
+  const showMap = searchQuery.trim().length > 0 || filterType === 'location' || !!activeTrackingTx;
 
   const handleSelectItem = (item: MarketplaceItem) => {
     setSelectedItem(item);
@@ -131,17 +132,19 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
   };
 
   const handleCompletePurchase = (total: number, label: string) => {
-    onPurchase(total, label);
-    setIsCheckingOut(false);
-    
-    if (selectedItem?.allowReferral) {
-      const commission = selectedItem.referralFee || Math.floor(selectedItem.numericPrice * 0.05);
-      setTimeout(() => {
-        onReward(commission, `Referral Commission: ${selectedItem.name}`);
-      }, 1000);
+    if (selectedItem) {
+      onPurchase(total, label, selectedItem);
+      setIsCheckingOut(false);
+      
+      if (selectedItem.allowReferral) {
+        const commission = selectedItem.referralFee || Math.floor(selectedItem.numericPrice * 0.05);
+        setTimeout(() => {
+          onReward(commission, `Referral Commission: ${selectedItem.name}`);
+        }, 1000);
+      }
+      
+      setSelectedItem(null);
     }
-    
-    setSelectedItem(null);
   };
 
   const handleReferral = (e: React.MouseEvent | null, item: MarketplaceItem) => {
@@ -175,7 +178,6 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto px-6 pb-48 animate-fade-in pt-4 relative">
-      
       {referralFeedback && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[300] w-full max-w-sm px-6 animate-in slide-in-from-top-20 duration-700">
            <div className="bg-white text-black rounded-[2.5rem] p-6 shadow-2xl border-4 border-amber-500 flex items-center gap-5 relative overflow-hidden">
@@ -239,32 +241,30 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
             filterType={filterType}
             onSelectItem={handleSelectItem} 
             selectedItemId={selectedItem?.id}
+            trackingTx={activeTrackingTx}
           />
         </div>
       </div>
 
       <div 
-        key={`${filterType}-${activeCategory}-${searchQuery.length > 0}`}
+        key={`${filterType}-${activeCategory}-${searchQuery}`}
         className="grid grid-cols-1 md:grid-cols-2 gap-12"
       >
-        {filteredItems.length > 0 ? filteredItems.map((item, index) => {
-          const isService = item.category.toUpperCase() === 'SERVICES';
+        {filteredItems.map((item, index) => {
           return (
             <div 
               key={item.id} 
               className="group bg-white rounded-[3.5rem] overflow-hidden shadow-2xl transition-all spring-pop cursor-pointer border border-gray-50 hover:shadow-amber-500/10 animate-item-reveal hover:scale-[1.01] duration-500"
               onClick={() => handleSelectItem(item)}
-              style={{ animationDelay: `${index * 100}ms` }}
+              style={{ animationDelay: `${index * 60}ms` }}
             >
               <div className="aspect-[4/5] relative overflow-hidden bg-gray-100">
                 <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt={item.name} />
-                
                 <div className="absolute top-8 left-8 flex flex-col gap-2">
                   <div className="px-4 py-2 bg-black text-white text-[10px] font-black uppercase rounded-xl tracking-widest shadow-2xl flex items-center gap-2">
                     <span className="text-amber-500">★</span> {item.vendorRating}
                   </div>
                 </div>
-
                 <div className="absolute top-8 right-8 flex flex-col gap-3">
                   <button 
                     onClick={(e) => handleWishlistClick(e, item)}
@@ -276,7 +276,6 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
                   </button>
-                  
                   {item.allowReferral && (
                     <button 
                       onClick={(e) => handleReferral(e, item)}
@@ -287,19 +286,13 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
                   )}
                 </div>
               </div>
-              
               <div className="p-10 flex justify-between items-start">
                  <div>
                     <p className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1">{item.category}</p>
                     <h3 className="text-3xl font-black italic text-black leading-tight tracking-tighter">{item.name}</h3>
-                    <div 
-                      className="flex items-center gap-2 mt-2 group/handle cursor-pointer"
-                      onClick={(e) => handleVendorClick(e, item.vendorHandle)}
-                    >
+                    <div className="flex items-center gap-2 mt-2 group/handle cursor-pointer" onClick={(e) => handleVendorClick(e, item.vendorHandle)}>
                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                       <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest group-hover/handle:text-amber-500 transition-colors">
-                         {item.vendorHandle}
-                       </p>
+                       <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest group-hover/handle:text-amber-500 transition-colors">{item.vendorHandle}</p>
                     </div>
                  </div>
                  <div className="text-right">
@@ -309,14 +302,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
               </div>
             </div>
           );
-        }) : (
-          <div className="col-span-full py-48 text-center bg-white/5 rounded-[4rem] border-2 border-dashed border-white/10 animate-fade-in">
-             <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8 text-gray-600">
-                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-             </div>
-             <p className="text-[12px] font-black text-gray-500 uppercase tracking-[0.8em]">No Assets Detected</p>
-          </div>
-        )}
+        })}
       </div>
 
       {isViewingDetail && selectedItem && (
@@ -365,10 +351,7 @@ export const MarketplaceView: React.FC<MarketplaceViewProps> = ({
       )}
 
       {isUploading && (
-        <VendorUploadModal 
-          onClose={() => setIsUploading(false)} 
-          onSuccess={refreshItems}
-        />
+        <VendorUploadModal onClose={() => setIsUploading(false)} onSuccess={refreshItems} />
       )}
     </div>
   );

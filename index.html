@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>YFN - The Unified Creative Universe</title>
+    <title>YFN - Social Commerce Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
     
@@ -100,12 +100,12 @@
       }
 
       @keyframes item-reveal {
-        from { opacity: 0; transform: translateY(30px) scale(0.98); }
+        from { opacity: 0; transform: translateY(15px) scale(0.99); }
         to { opacity: 1; transform: translateY(0) scale(1); }
       }
 
       .animate-item-reveal {
-        animation: item-reveal 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+        animation: item-reveal 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
         opacity: 0;
       }
 
@@ -117,6 +117,22 @@
       .animate-heart {
         animation: heart-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
+
+      @keyframes toast-up {
+        0% { transform: translate(-50%, 100%); opacity: 0; }
+        15% { transform: translate(-50%, -20px); opacity: 1; }
+        85% { transform: translate(-50%, -20px); opacity: 1; }
+        100% { transform: translate(-50%, 100%); opacity: 0; }
+      }
+      .animate-toast {
+        animation: toast-up 3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+      }
+
+      @keyframes avatar-ripple {
+        0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4); }
+        100% { box-shadow: 0 0 0 40px rgba(255, 255, 255, 0); }
+      }
+      .animate-ripple { animation: avatar-ripple 1s cubic-bezier(0.4, 0, 0.2, 1); }
 
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       .no-scrollbar::-webkit-scrollbar { display: none; }

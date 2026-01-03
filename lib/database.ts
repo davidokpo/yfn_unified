@@ -75,6 +75,19 @@ export const MOCK_ARTICLES: Article[] = [
     isHot: true
   },
   {
+    id: 99,
+    title: "Legal AI: The Scalpel of Justice",
+    excerpt: "How our neural mediation node resolved 1.2M disputes with 99.8% neutral accuracy.",
+    content: "Trust is the currency of social commerce. The YFN Legal AI Judge utilizes vision transformers to compare sent vs received assets, ensuring neither buyer nor seller is ever penalized by protocol error. Our latest update includes 'Benin Bronze' weighted precedents for cultural asset protection.",
+    author: "YFN Legal Dept",
+    authorId: "yfn_universe",
+    date: "5h ago",
+    category: "LEGAL_PROTOCOL",
+    isOfficial: true,
+    image: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?q=80&w=1200&h=800&auto=format&fit=crop",
+    isHot: false
+  },
+  {
     id: 401,
     title: "The Leather Ledger: 2025 Sourcing",
     excerpt: "Why the future of African luxury starts with ethical hide sovereignty.",
@@ -85,18 +98,6 @@ export const MOCK_ARTICLES: Article[] = [
     category: "BUSINESS_INSIGHT",
     image: "https://images.unsplash.com/photo-1530519729491-acf50994c650?q=80&w=1200&h=800&auto=format&fit=crop",
     isTrending: true
-  },
-  {
-    id: 1,
-    title: "The 2025 Ledger: 10 Youths Defining the New Lagos",
-    excerpt: "The authoritative selection of innovators rewriting the Nigerian success protocol.",
-    content: "The landscape of Nigerian success is shifting from resource extraction to digital sovereignty...",
-    author: "Zion Vance",
-    authorId: "0xVANCE_82",
-    date: "2h ago",
-    category: "COMMUNITY_HUB",
-    image: "https://images.unsplash.com/photo-1531384441138-2736e62e0919?q=80&w=1200&h=800&auto=format&fit=crop",
-    isHot: true
   }
 ];
 

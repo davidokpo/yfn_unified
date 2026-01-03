@@ -16,7 +16,6 @@ export const CreativeSpark: React.FC<CreativeSparkProps> = ({ onClose, onReward 
   const generateVision = async () => {
     if (!prompt) return;
     setLoading(true);
-    // Directly using the GoogleGenAI SDK as the primary engine, but conceptually backed by Firebase project credentials
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
@@ -34,7 +33,7 @@ export const CreativeSpark: React.FC<CreativeSparkProps> = ({ onClose, onReward 
         }
       }
     } catch (err) {
-      alert("Design engine busy. Try again.");
+      alert("Error generating image. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -43,8 +42,8 @@ export const CreativeSpark: React.FC<CreativeSparkProps> = ({ onClose, onReward 
   const handlePublish = () => {
     setIsPublishing(true);
     setTimeout(() => {
-      onReward(15000, "Design Submission Bonus");
-      alert("Design published! Your asset is now stored in the Firebase Cloud Vault.");
+      onReward(15000, "Design Submission Reward");
+      alert("Your design has been published!");
       onClose();
     }, 2000);
   };
@@ -52,20 +51,12 @@ export const CreativeSpark: React.FC<CreativeSparkProps> = ({ onClose, onReward 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-3xl animate-fade-in">
       <div className="w-full max-w-lg bg-white text-black rounded-[3rem] p-10 relative shadow-2xl overflow-hidden">
-        
-        {/* Firebase Branding Strip */}
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-[#039be5]"></div>
-        
         <button onClick={onClose} className="absolute top-8 right-8 text-gray-300 hover:text-black">✕</button>
         
         <div className="flex flex-col items-center gap-8">
           <div className="space-y-2 text-center">
-            <h2 className="text-3xl font-black italic">Creator Studio</h2>
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Vertex AI Protocol</span>
-              <div className="w-1 h-1 bg-gray-200 rounded-full"></div>
-              <span className="text-[10px] font-black text-[#039be5] uppercase tracking-[0.3em]">Firebase Secured</span>
-            </div>
+            <h2 className="text-3xl font-black italic">Design Center</h2>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">AI-Powered Creation Tool</p>
           </div>
           
           <div className="w-full">
@@ -74,20 +65,15 @@ export const CreativeSpark: React.FC<CreativeSparkProps> = ({ onClose, onReward 
                 <textarea 
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe your design (e.g., A leather tote bag with African brass hardware)..."
-                  className="w-full h-40 bg-gray-50 border border-gray-100 rounded-3xl p-6 text-sm focus:outline-none focus:border-[#039be5] transition-colors resize-none font-medium text-black"
+                  placeholder="Describe your design (e.g., A stylish leather handbag with gold details)..."
+                  className="w-full h-40 bg-gray-50 border border-gray-100 rounded-3xl p-6 text-sm focus:outline-none focus:border-black transition-colors resize-none font-medium text-black"
                 />
                 <button 
                   disabled={loading || !prompt}
                   onClick={generateVision}
                   className="w-full py-6 bg-black text-white font-black uppercase tracking-widest rounded-full shadow-xl disabled:opacity-20 flex items-center justify-center gap-3 group"
                 >
-                  {loading ? 'Visualizing...' : (
-                    <>
-                      <span>Generate Design</span>
-                      <svg className="w-4 h-4 text-[#039be5]" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    </>
-                  )}
+                  {loading ? 'Creating...' : 'Generate Design'}
                 </button>
               </div>
             ) : (
@@ -96,13 +82,13 @@ export const CreativeSpark: React.FC<CreativeSparkProps> = ({ onClose, onReward 
                   <img src={vision} className="w-full h-full object-cover" alt="AI Generated" />
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => setVision(null)} className="flex-1 py-5 bg-gray-100 rounded-full text-[10px] font-black uppercase tracking-widest">Discard</button>
+                  <button onClick={() => setVision(null)} className="flex-1 py-5 bg-gray-100 rounded-full text-[10px] font-black uppercase tracking-widest">Delete</button>
                   <button 
                     onClick={handlePublish}
                     disabled={isPublishing}
-                    className="flex-1 py-5 bg-[#039be5] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl"
+                    className="flex-1 py-5 bg-amber-500 text-black rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl"
                   >
-                    {isPublishing ? 'Publishing...' : 'Sync to Vault'}
+                    {isPublishing ? 'Publishing...' : 'Publish Design'}
                   </button>
                 </div>
               </div>

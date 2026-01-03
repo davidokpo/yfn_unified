@@ -26,14 +26,74 @@ export interface Collection {
   description?: string;
 }
 
+export type TransactionStatus = 'pending' | 'confirmed' | 'disputed' | 'returning' | 'refunded' | 'released';
+
 export interface Transaction {
   id: string;
   type: 'incoming' | 'outgoing';
   amount: number;
   label: string;
   date: string;
-  status: 'confirmed' | 'pending';
+  status: TransactionStatus;
   category: 'sale' | 'purchase' | 'royalty' | 'referral' | 'reward' | 'recharge';
+  sellerId?: string;
+  buyerId?: string;
+  disputeVerdict?: string;
+  itemCoordinates?: { x: number; y: number };
+  trackingProgress?: number; // 0 to 1
+  evidence?: {
+    sent?: string;
+    received?: string;
+    returned?: string;
+  };
+}
+
+export interface Message {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: string;
+  isAI?: boolean;
+}
+
+export interface Conversation {
+  id: string;
+  participantId: string;
+  participantName: string;
+  participantAvatar: string;
+  lastMessage: string;
+  lastTimestamp: string;
+  unreadCount: number;
+}
+
+export enum ViewType {
+  LANDING = 'landing',
+  AUTH = 'auth',
+  NEWS = 'news',
+  MARKETPLACE = 'marketplace',
+  CHATS = 'chats',
+  PROFILE = 'profile',
+  PUBLIC_PROFILE = 'public_profile',
+  WALLET = 'wallet',
+}
+
+export type HubTab = 'stream' | 'collections' | 'promoted' | 'purchases' | 'wishlist' | 'mediation';
+
+export interface RechargeBundle {
+  id: string;
+  amount: number;
+  price: number;
+  label: string;
+  bonus?: string;
+  color: string;
+}
+
+export type ArticleType = 'COMMUNITY_HUB' | 'NEWS' | 'BUSINESS_INSIGHT' | 'CULTURE_HEAT' | 'LEGAL_PROTOCOL';
+
+export interface MarketDataPoint {
+  value: number;
+  label: string;
+  event?: string;
 }
 
 export interface YouthProfile {
@@ -41,21 +101,13 @@ export interface YouthProfile {
   age: number;
   origin: string;
   school: string;
-  who: string; // Brief intro
-  what: string; // What they do
-  how: string; // What led to this/The journey
+  who: string;
+  what: string;
+  how: string;
   failures: string;
   successes: string;
-  techStartDate: string; // When they started tech/hustle
+  techStartDate: string;
   image: string;
-}
-
-export type ArticleType = 'COMMUNITY_HUB' | 'NEWS' | 'BUSINESS_INSIGHT' | 'CULTURE_HEAT';
-
-export interface MarketDataPoint {
-  label: string;
-  value: number;
-  event?: string;
 }
 
 export interface Article {
@@ -67,13 +119,13 @@ export interface Article {
   authorId: string;
   date: string;
   category: ArticleType;
+  isOfficial?: boolean;
   image: string;
   isHot?: boolean;
   isTrending?: boolean;
   isAI?: boolean;
-  isOfficial?: boolean;
+  marketData?: MarketDataPoint[];
   featuredProfiles?: YouthProfile[];
-  marketData?: MarketDataPoint[]; // For Pulse Intelligence charts
 }
 
 export interface UserPost {
@@ -83,28 +135,8 @@ export interface UserPost {
   likes: number;
   comments: number;
   isPrivate: boolean;
-  isLocked?: boolean;
-  isAIDesign?: boolean;
-  designStatus?: 'draft' | 'trending' | 'matched';
-  royaltyRate?: number;
-}
-
-export enum ViewType {
-  LANDING = 'landing',
-  NEWS = 'news',
-  MARKETPLACE = 'marketplace',
-  PROFILE = 'profile',
-  PUBLIC_PROFILE = 'public_profile',
-  WALLET = 'wallet',
-}
-
-export interface RechargeBundle {
-  id: string;
-  amount: number;
-  price: number;
-  label: string;
-  bonus?: string;
-  color: string;
+  isAIDesign: boolean;
+  designStatus: 'trending' | 'draft';
 }
 
 export interface NewsViewProps {
@@ -115,7 +147,7 @@ export interface NewsViewProps {
 }
 
 export interface ProfileViewProps {
-  userId?: string; // Optional: if provided, view this specific user
+  userId?: string; 
   recentlyViewed: MarketplaceItem[];
   wishlist: MarketplaceItem[];
   collections: Collection[];
@@ -123,5 +155,8 @@ export interface ProfileViewProps {
   transactions: Transaction[];
   onHistoryItemClick: (item: MarketplaceItem) => void;
   onReward: (amount: number, label: string) => void;
+  onUpdateTransaction?: (tx: Transaction) => void;
   onViewProfile?: (userId: string) => void;
+  onStartChat?: (userId: string) => void;
+  onTrackOrder?: (tx: Transaction) => void;
 }

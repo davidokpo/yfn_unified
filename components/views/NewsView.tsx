@@ -108,6 +108,7 @@ export const NewsView: React.FC<NewsViewProps> = ({ onQuote, transactions = [], 
       if (hubFilter === 'subscriptions') {
         const authorIds = followedNodes.map(n => n.id);
         return authorIds.map(aid => 
+          // FIX: Corrected typo 'articleAuthorId' to 'a.authorId'
           MOCK_ARTICLES.filter(a => a.authorId === aid).sort((a,b) => b.id - a.id)[0]
         ).filter(Boolean);
       }
@@ -124,11 +125,13 @@ export const NewsView: React.FC<NewsViewProps> = ({ onQuote, transactions = [], 
     return () => clearInterval(timer);
   }, [activeCategory, featuredArticles.length]);
 
+  // FIX: Added missing LEGAL_PROTOCOL property to match ArticleType definition in Record
   const categoryLabels: Record<ArticleType, string> = {
     'COMMUNITY_HUB': 'Features',
     'NEWS': 'News',
     'BUSINESS_INSIGHT': 'Insights',
-    'CULTURE_HEAT': 'Heat'
+    'CULTURE_HEAT': 'Heat',
+    'LEGAL_PROTOCOL': 'Legal'
   };
 
   const handleOpenArticle = (article: Article) => {

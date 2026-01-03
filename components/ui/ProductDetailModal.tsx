@@ -26,6 +26,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [showCollectionModal, setShowCollectionModal] = useState(false);
   const [promoted, setPromoted] = useState(false);
   const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
+  const [isBuying, setIsBuying] = useState(false);
 
   const isService = item.category.toUpperCase() === 'SERVICES';
 
@@ -38,6 +39,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       onPromote(); 
       setTimeout(() => setPromoted(false), 3000);
     });
+  };
+
+  const handleBuyClick = () => {
+    setIsBuying(true);
+    setTimeout(() => {
+      onBuy();
+      setIsBuying(false);
+    }, 1200);
   };
 
   const handleVendorClick = () => {
@@ -98,10 +107,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </div>
             
             <div className="flex gap-2">
-               <button onClick={handlePromoteClick} className={`flex-1 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all ${promoted ? 'bg-amber-500 text-black' : 'bg-white border border-gray-100 text-gray-400'}`}>
+               <button onClick={handlePromoteClick} className={`flex-1 py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all spring-pop ${promoted ? 'bg-amber-500 text-black' : 'bg-white border border-gray-100 text-gray-400 hover:border-black hover:text-black'}`}>
                  {promoted ? 'Link Copied' : 'Promote & Earn'}
                </button>
-               <button onClick={() => setShowCollectionModal(true)} className="flex-1 py-4 bg-white border border-gray-100 rounded-2xl text-[9px] font-black uppercase tracking-widest text-gray-400">Curate</button>
+               <button onClick={() => setShowCollectionModal(true)} className="flex-1 py-4 bg-white border border-gray-100 rounded-2xl text-[9px] font-black uppercase tracking-widest text-gray-400 hover:border-black hover:text-black transition-all spring-pop">Curate</button>
             </div>
           </div>
 
@@ -113,7 +122,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </div>
 
               <div className="flex items-center gap-3 border-b border-gray-100 pb-4 cursor-pointer group" onClick={handleVendorClick}>
-                 <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center text-[10px] font-black italic shadow-md">Y</div>
+                 <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center text-[10px] font-black italic shadow-md group-hover:bg-amber-500 transition-colors">Y</div>
                  <div className="flex flex-col">
                    <span className="text-[10px] font-black uppercase tracking-widest leading-none group-hover:text-amber-500 transition-colors">{item.vendorHandle}</span>
                    <span className="text-[9px] text-gray-400 font-bold uppercase mt-1">Reputation: {item.vendorRating} ★</span>
@@ -135,15 +144,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="pt-8 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 {!isService && (
-                  <button onClick={onTryOn} className="py-4 bg-gray-100 text-black rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-200 transition-all border border-transparent hover:border-black/5">Try On</button>
+                  <button onClick={onTryOn} className="py-4 bg-gray-100 text-black rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-200 transition-all border border-transparent hover:border-black/5 spring-pop">Try On</button>
                 )}
                 {item.isBargainable ? (
-                  <button onClick={onBargain} className="py-4 bg-teal-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">Bargain</button>
+                  <button onClick={onBargain} className="py-4 bg-teal-500 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2 spring-pop">Bargain</button>
                 ) : (
-                  <button onClick={onToggleWishlist} className={`py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${isWishlisted ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-900'}`}>{isWishlisted ? 'Saved' : 'Wishlist'}</button>
+                  <button onClick={onToggleWishlist} className={`py-4 rounded-2xl text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg spring-pop ${isWishlisted ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-900 hover:bg-rose-100'}`}>{isWishlisted ? 'Saved' : 'Wishlist'}</button>
                 )}
               </div>
-              <button onClick={onBuy} className={`w-full py-5 text-white rounded-full font-black uppercase tracking-widest text-[10px] shadow-2xl transition-all ${isService ? 'bg-teal-600 hover:bg-teal-700' : 'bg-black hover:bg-gray-900'}`}>{isService ? 'Book Service' : `Buy for ${item.price}`}</button>
+              <button 
+                onClick={handleBuyClick} 
+                disabled={isBuying}
+                className={`w-full py-5 text-white rounded-full font-black uppercase tracking-widest text-[10px] shadow-2xl transition-all spring-pop flex items-center justify-center gap-3 ${isBuying ? 'bg-gray-400' : isService ? 'bg-teal-600 hover:bg-teal-700' : 'bg-black hover:bg-gray-900'}`}
+              >
+                {isBuying ? (
+                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                ) : null}
+                <span>{isBuying ? 'Verifying Node...' : isService ? 'Book Service' : `Buy for ${item.price}`}</span>
+              </button>
             </div>
           </div>
         </div>
